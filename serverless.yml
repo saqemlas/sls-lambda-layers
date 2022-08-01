@@ -1,0 +1,128 @@
+service: lambdalayers
+
+plugins:
+  - serverless-esbuild
+  - serverless-s3-cleaner
+  - serverless-iam-roles-per-function
+
+package:
+  individually: true
+  patterns:
+    - 'src/**'
+    - '!node_modules/**'
+    - '!.serverless/**'
+    - '!layers/**'
+
+custom:
+  projecy: template
+  baseName: ${self:custom.project}-${self:service}-${self:provider.stage}
+
+  esbuild:
+    target: node14
+    packager: yarn
+    minify: true
+    sourcemap: true
+  
+  serverless-s3-cleaner:
+    buckets:
+      - ${cf:${self:custom.baseName}.ServerlessDeploymentBucketName, ''}
+
+  serverless-iam-roles-per-function:
+    defaultInherit: true
+
+
+provider:
+  name: aws
+  region: ${opt:region, 'eu-west-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: ${self:custom.baseName}
+  deploymentBucket:
+    blockPublicAccess: true
+  runtime: nodejs14.x
+  memorySize: 128
+  timeout: 25
+  versionFunctions: false
+  logRetentionInDays: 7
+  logs:
+    httpApi: true
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    NODE_OPTIONS: "--enable-source-maps"
+  httpApi:
+    disableDefaultEndpoint: false
+    shouldStartNameWithService: true
+    cors:
+      allowedOrigins: 
+        - '*'
+      allowedMethods:
+        - GET
+      allowedHeaders:
+        - Content-Type
+  iam:
+    role:
+      name: ${self:custom.baseName}
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*:log-stream:*
+
+
+layers:
+  Dependencies:
+    name: ${self:custom.baseName}-dependencies
+    package:
+      artifact: layers/dependencies.zip
+    retain: false
+
+
+functions:
+  slug:
+    name: ${self:custom.baseName}-slug
+    handler: src/slug/index.handler
+    memorySize: 2048
+    timeout: 25
+    events:
+      - httpApi:
+          path: /slug
+          method: GET
+    layers:
+      - !Ref DependenciesLambdaLayer
+  sum:
+    name: ${self:custom.baseName}-sum
+    handler: src/sum/index.handler
+    events:
+      - httpApi:
+          path: /sum/{a}/{b}
+          method: GET
+    layers:
+      - !Ref DependenciesLambdaLayer
+  catch:
+    name: ${self:custom.baseName}-catch
+    handler: src/catch/index.handler
+    events:
+      - httpApi: '*'
+    layers:
+      - !Ref DependenciesLambdaLayer
+
+
+resources:
+  Resources:
+
+    # Lambda Layer: retain issue #6769 - https://github.com/serverless/serverless/issues/6769
+
+    DependenciesLambdaLayer:
+      Type: AWS::Lambda::LayerVersion
+      UpdateReplacePolicy: Retain
+      DeletionPolicy: Delete
+
+    # SSM
+
+    EndpointDomainParam:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /${self:service}/${self:provider.stage}/endpointUrl
+        Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+        Type: String

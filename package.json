@@ -1,0 +1,25 @@
+{
+  "name": "@aws-template/lambda-layers",
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "scripts": {
+    "clean": "rimraf .serverless node_modules layers/shared/node_modules layers/nodejs/node_modules layers/dependencies.zip && yarn cache clean",
+    "postinstall": "yarn run install:dependencies",
+    "install:dependencies": "cd layers/shared && yarn install && cd ../nodejs && yarn install",
+    "zip:dependencies": "cd layers && zip -r dependencies.zip .",
+    "package:dependencies": "yarn run install:dependencies && yarn run zip:dependencies",
+    "deploy": "yarn run package:dependencies && serverless deploy",
+    "remove": "serverless remove"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.101",
+    "@types/node": "18.6.3",
+    "esbuild": "0.14.51",
+    "rimraf": "3.0.2",
+    "serverless": "3.21.0",
+    "serverless-esbuild": "1.32.5",
+    "serverless-s3-cleaner": "2.0.1",
+    "serverless-iam-roles-per-function": "3.2.0"
+  }
+}
