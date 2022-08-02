@@ -8,7 +8,7 @@ plugins:
 package:
   individually: true
   patterns:
-    - 'src/**'
+    - 'functions/**'
     - '!node_modules/**'
     - '!.serverless/**'
     - '!layers/**'
@@ -81,7 +81,7 @@ layers:
 functions:
   slug:
     name: ${self:custom.baseName}-slug
-    handler: src/slug/index.handler
+    handler: functions/slug/index.handler
     memorySize: 2048
     timeout: 25
     events:
@@ -92,7 +92,7 @@ functions:
       - !Ref DependenciesLambdaLayer
   sum:
     name: ${self:custom.baseName}-sum
-    handler: src/sum/index.handler
+    handler: functions/sum/index.handler
     events:
       - httpApi:
           path: /sum/{a}/{b}
@@ -101,7 +101,7 @@ functions:
       - !Ref DependenciesLambdaLayer
   catch:
     name: ${self:custom.baseName}-catch
-    handler: src/catch/index.handler
+    handler: functions/catch/index.handler
     events:
       - httpApi: '*'
     layers:
